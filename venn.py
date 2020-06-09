@@ -178,7 +178,10 @@ def getLabelPositions(circles, labels):
         for ol in olapC:
             if len(ol) > 0:
                 break
-        areaId = max(ol, key=lambda x: ol[x])
+        if ol:
+            areaId = max(ol, key=lambda x: ol[x])
+        else:
+            yield l, c[0][0], c[0][1]
         indices = np.where(intersectionIds == areaId)
         rndx, rndy = int(np.median(indices[0])), int(np.median(indices[1][np.where(indices[0]==int(np.median(indices[0])))]))
         lx, ly = x[rndx, rndy], y[rndx, rndy]
