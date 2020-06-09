@@ -178,7 +178,7 @@ def getLabelPositions(circles, labels):
         n = k.count('1')
         olapByNset[n-1][k] = curr_overlap[k]
     
-    areaTol = 0.01*(np.max(x)-np.min(x))*(np.max(y)-np.min(y))
+    areaTol = 0.001*(np.max(x)-np.min(x))*(np.max(y)-np.min(y))
     for i, (l, c) in enumerate(zip(labels, circles)):
         olapC = [filterTheDict(ol, lambda elem: (elem[0][i] == '1') and (elem[1] > areaTol)) for ol in olapByNset]
         for ol in olapC:
