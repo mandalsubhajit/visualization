@@ -13,7 +13,6 @@ from functools import reduce
 from itertools import product, compress
 from scipy.optimize import bisect, minimize
 from sklearn.manifold import MDS
-from scipy import ndimage
 import pandas as pd
 
 ''' Calculates the approximate intersection areas based on a projection
@@ -164,21 +163,49 @@ def getCircles(radii, actualOverlaps, disjointOverlaps, fineTune=False):
     
     return circles
 
+
+''' Get label positions for each circle avoiding the overlap areas '''
+def getLabelPositions(circles, labels):
+    x, y, intersectionIds, curr_overlap = calc_overlap_area(circles)
+    olapByNset = [dict() for x in range(len(circles))]
+    for k in curr_overlap:
+        n = k.count('1')
+        olapByNset[n-1][k] = curr_overlap[k]
+    
+    areaTol = 0.01*(np.max(x)-np.min(x))*(np.max(y)-np.min(y))
+    for i, (l, c) in enumerate(zip(labels, circles)):
+        olapC = [filterTheDict(ol, lambda elem: (elem[0][i] == '1') and (elem[1] > areaTol)) for ol in olapByNset]
+        for ol in olapC:
+            if len(ol) > 0:
+                break
+        areaId = max(ol, key=lambda x: ol[x])
+        indices = np.where(intersectionIds == areaId)
+        rndx, rndy = int(np.median(indices[0])), int(np.median(indices[1][np.where(indices[0]==int(np.median(indices[0])))]))
+        lx, ly = x[rndx, rndy], y[rndx, rndy]
+        yield l, lx, ly
+
+''' Dictionary filter utility function - filter a dictionary basedon criteria'''
+def filterTheDict(dictObj, callback):
+    newDict = dict()
+    # Iterate over all the items in dictionary
+    for (key, value) in dictObj.items():
+        # Check if item satisfies the given condition then add to new dict
+        if callback((key, value)):
+            newDict[key] = value
+    return newDict
+
+
 ''' Plots the Venn diagrams from radius and overlap data '''
 def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, fineTune=False):
     circles = getCircles(radii, actualOverlaps, disjointOverlaps, fineTune)
     fig, ax = plt.subplots()
-    cplots = [plt.Circle(circles[i][0], circles[i][1], alpha=0.5) for i in range(len(circles))]
+    cplots = [plt.Circle(circles[i][0], circles[i][1]) for i in range(len(circles))]
     arr = np.array(radii)
     col = PatchCollection(cplots, cmap=cmap, array=arr, alpha=0.5)
     ax.add_collection(col)
     
     if labels is not None:
-        x, y, intersectionIds, curr_overlap = calc_overlap_area(circles)
-        comidx = ndimage.measurements.center_of_mass(np.ones(intersectionIds.shape), intersectionIds, ['0'*i+'1'+'0'*(len(circles)-i-1) for i in range(len(circles))])
-        for i, (l, c) in enumerate(zip(labels, circles)):
-            areaId = '0'*i+'1'+'0'*(len(circles)-i-1)
-            lx, ly = (x[int(comidx[i][0]), int(comidx[i][1])], y[int(comidx[i][0]), int(comidx[i][1])]) if areaId in intersectionIds else c[0]
+        for l, lx, ly in getLabelPositions(circles, labels):
             ax.annotate(l, xy=(lx, ly), fontsize=15, ha='center', va='center')
     
     ax.axis('off')
