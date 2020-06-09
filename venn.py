@@ -178,7 +178,7 @@ def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, fineTu
         comidx = ndimage.measurements.center_of_mass(np.ones(intersectionIds.shape), intersectionIds, ['0'*i+'1'+'0'*(len(circles)-i-1) for i in range(len(circles))])
         for i, (l, c) in enumerate(zip(labels, circles)):
             areaId = '0'*i+'1'+'0'*(len(circles)-i-1)
-            lx, ly = x[int(comidx[i][0]), int(comidx[i][1])], y[int(comidx[i][0]), int(comidx[i][1])] if areaId in intersectionIds else c[0]
+            lx, ly = (x[int(comidx[i][0]), int(comidx[i][1])], y[int(comidx[i][0]), int(comidx[i][1])]) if areaId in intersectionIds else c[0]
             ax.annotate(l, xy=(lx, ly), fontsize=15, ha='center', va='center')
     
     ax.axis('off')
