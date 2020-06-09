@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 import numpy as np
 from functools import reduce
-from itertools import product, compress
+from itertools import product, combinations, compress
 from scipy.optimize import bisect, minimize
 from sklearn.manifold import MDS
 import pandas as pd
@@ -103,29 +103,35 @@ def lossFunction(centers, radii, overlaps):
 
 
 ''' Calculates the intersection between columns of a dataframe '''
-def df2areas(df):
+def df2areas(df, fineTune=False):
     radii = np.sqrt(df.sum()/np.pi).tolist()
     labels = df.columns
     
     # intersection of two sets - may be overlapped with other sets - A int B
     actualOverlaps = {}
-    for comb in product(*[[True,False]]*len(radii)):
-        if comb != (False, )*len(radii):
-            olap = np.sum(reduce(lambda x, y: x & y, [df[col] for col in compress(df.columns, comb)]))
-            actualOverlaps[''.join([str(int(b)) for b in comb])] = olap
+    if fineTune:
+        for comb in product(*[[True,False]]*len(radii)):
+            if comb != (False, )*len(radii):
+                olap = np.sum(reduce(lambda x, y: x & y, [df[col] for col in compress(df.columns, comb)]))
+                actualOverlaps[''.join([str(int(b)) for b in comb])] = olap
+    else:
+        for comb in combinations(range(df.shape[1]), 2):
+            olap = np.sum(df.iloc[:, comb[0]] & df.iloc[:, comb[1]])
+            actualOverlaps['0'*comb[0]+'1'+'0'*(comb[1]-comb[0]-1)+'1'+'0'*(df.shape[1]-comb[1]-1)] = olap
     
     # intersection of two sets only - not overlapped with any other set - A int B int (not C)
     disjointOverlaps = {}
-    for comb in product(*[[True,False]]*len(radii)):
-        if comb != (False, )*len(radii):
-            temp = []
-            for i, b in enumerate(comb):
-                if b:
-                    temp.append(df.iloc[:,i])
-                else:
-                    temp.append(1-df.iloc[:,i])
-            olap = np.sum(reduce(lambda x, y: x & y, temp))
-            disjointOverlaps[''.join([str(int(b)) for b in comb])] = olap
+    if fineTune:
+        for comb in product(*[[True,False]]*len(radii)):
+            if comb != (False, )*len(radii):
+                temp = []
+                for i, b in enumerate(comb):
+                    if b:
+                        temp.append(df.iloc[:,i])
+                    else:
+                        temp.append(1-df.iloc[:,i])
+                olap = np.sum(reduce(lambda x, y: x & y, temp))
+                disjointOverlaps[''.join([str(int(b)) for b in comb])] = olap
     
     return labels, radii, actualOverlaps, disjointOverlaps
 
@@ -222,7 +228,7 @@ def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, fineTu
 ''' Usage Example '''
 if __name__ == '__main__':
     df = pd.DataFrame(np.random.choice([0,1], size = (1000, 5)), columns=list('ABCDE'))
-    labels, radii, actualOverlaps, disjointOverlaps = df2areas(df)
+    labels, radii, actualOverlaps, disjointOverlaps = df2areas(df, fineTune=False)
     fig, ax = venn(radii, actualOverlaps, disjointOverlaps, labels=labels, cmap=None, fineTune=False)
     plt.savefig('venn.png', dpi=300, transparent=True)
     plt.close()
