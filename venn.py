@@ -26,7 +26,7 @@ def calc_overlap_area(circles):
     rmin = min([c[1] for c in circles])
     scale_min = min(left, right, bottom, top)
     scale_max = max(left, right, bottom, top)
-    granularity = max(200, int(10*(scale_max-scale_min)/rmin))
+    granularity = 200
     scale = np.linspace(scale_min, scale_max, granularity)
     
     x = np.array([scale,]*granularity)
