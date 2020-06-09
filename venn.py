@@ -3,7 +3,7 @@
 """
 Created on Sun Jun  7 15:49:19 2020
 
-@author: subhajit
+@author: Subhajit Mandal
 """
 
 import matplotlib.pyplot as plt
@@ -13,6 +13,7 @@ from functools import reduce
 from itertools import product, compress
 from scipy.optimize import bisect, minimize
 from sklearn.manifold import MDS
+from scipy import ndimage
 import pandas as pd
 
 ''' Calculates the approximate intersection areas based on a projection
@@ -173,17 +174,12 @@ def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, fineTu
     ax.add_collection(col)
     
     if labels is not None:
-        i = 0
         x, y, intersectionIds, curr_overlap = calc_overlap_area(circles)
-        for l, c in zip(labels, circles):
+        comidx = ndimage.measurements.center_of_mass(np.ones(intersectionIds.shape), intersectionIds, ['0'*i+'1'+'0'*(len(circles)-i-1) for i in range(len(circles))])
+        for i, (l, c) in enumerate(zip(labels, circles)):
             areaId = '0'*i+'1'+'0'*(len(circles)-i-1)
-            if areaId in intersectionIds:
-                lx = np.mean(np.ma.masked_array(x, mask=intersectionIds != areaId))
-                ly = np.mean(np.ma.masked_array(y, mask=intersectionIds != areaId))
-            else:
-                lx, ly = c[0]
+            lx, ly = x[int(comidx[i][0]), int(comidx[i][1])], y[int(comidx[i][0]), int(comidx[i][1])] if areaId in intersectionIds else c[0]
             ax.annotate(l, xy=(lx, ly), fontsize=15, ha='center', va='center')
-            i += 1
     
     ax.axis('off')
     ax.set_aspect('equal')
