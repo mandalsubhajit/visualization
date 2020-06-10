@@ -121,7 +121,7 @@ def df2areas(df, fineTune=False):
     if fineTune:
         areaId = pd.Series(df.astype(str).values.sum(axis=1))
         vc = areaId.value_counts()
-        disjointOverlaps = dict(zip(vc.keys().astype(str).tolist(), vc.to_list()))
+        disjointOverlaps = dict(zip(vc.keys().astype(str).tolist(), vc.tolist()))
     
     
     return labels, radii, actualOverlaps, disjointOverlaps
