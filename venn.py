@@ -15,6 +15,8 @@ from scipy.optimize import bisect, minimize
 from sklearn.manifold import MDS
 import pandas as pd
 
+
+
 ''' Calculates the approximate intersection areas based on a projection
 of circles onto a 200x200 pixel matrix '''
 def calc_overlap_area(circles):
@@ -23,7 +25,6 @@ def calc_overlap_area(circles):
     bottom = min([c[0][1]-c[1] for c in circles])
     top = max([c[0][1]+c[1] for c in circles])
     
-    rmin = min([c[1] for c in circles])
     scale_min = min(left, right, bottom, top)
     scale_max = max(left, right, bottom, top)
     granularity = 200
@@ -43,6 +44,7 @@ def calc_overlap_area(circles):
     del intersectionAreas['0'*len(cp)]
     
     return x, y, intersectionIds, intersectionAreas
+
 
 
 # Circular segment area calculation. See http://mathworld.wolfram.com/CircularSegment.html
@@ -68,6 +70,8 @@ def circleOverlap(r1, r2, d):
     return circleArea(r1, w1) + circleArea(r2, w2)
 
 
+
+
 ''' Returns the distance necessary for two circles of radius r1 + r2 to
 have the overlap area 'overlap' '''
 def distanceFromIntersectArea(r1, r2, overlap):
@@ -82,9 +86,7 @@ def distanceFromIntersectArea(r1, r2, overlap):
 ''' Given a bunch of sets, and the desired overlaps between these sets - computes
 the distance from the actual overlaps to the desired overlaps. Note that
 this method ignores overlaps of more than 2 circles '''
-def lossFunction(centers, radii, overlaps):
-    output = 0;
-    
+def lossFunction(centers, radii, overlaps):    
     assert len(centers)%2 == 0, 'number parameters should be a multiple of 2 (2 xy co-ordinates for center of each circle)'
     assert len(centers)/2 == len(radii), 'number of centers & number of radii do not match'
     circles =  []
@@ -93,12 +95,13 @@ def lossFunction(centers, radii, overlaps):
     
     x, y, intersectionIds, curr_overlap = calc_overlap_area(circles)
     sst = max(len(overlaps)*np.var(list(overlaps.values())), 1)
-    for k in overlaps:
-        error = overlaps[k] - curr_overlap[k] if k in curr_overlap else overlaps[k]
-        output += error * error / sst
+    act_df = pd.DataFrame(overlaps.items(), columns=['areaId', 'actual'])
+    curr_df = pd.DataFrame(curr_overlap.items(), columns=['areaId', 'current'])
+    mdf = act_df.merge(curr_df, on='areaId', how='outer').fillna(0)
+    mdf['error'] = mdf['actual'] - mdf['current']
+    loss = np.sum(mdf['error']*mdf['error']/sst)
     
-    return output
-
+    return loss
 
 
 
@@ -109,31 +112,20 @@ def df2areas(df, fineTune=False):
     
     # intersection of two sets - may be overlapped with other sets - A int B
     actualOverlaps = {}
-    if fineTune:
-        for comb in product(*[[True,False]]*len(radii)):
-            if comb != (False, )*len(radii):
-                olap = np.sum(reduce(lambda x, y: x & y, [df[col] for col in compress(df.columns, comb)]))
-                actualOverlaps[''.join([str(int(b)) for b in comb])] = olap
-    else:
-        for comb in combinations(range(df.shape[1]), 2):
-            olap = np.sum(df.iloc[:, comb[0]] & df.iloc[:, comb[1]])
-            actualOverlaps['0'*comb[0]+'1'+'0'*(comb[1]-comb[0]-1)+'1'+'0'*(df.shape[1]-comb[1]-1)] = olap
+    for comb in combinations(range(df.shape[1]), 2):
+        olap = np.sum(df.iloc[:, comb[0]] & df.iloc[:, comb[1]])
+        actualOverlaps['0'*comb[0]+'1'+'0'*(comb[1]-comb[0]-1)+'1'+'0'*(df.shape[1]-comb[1]-1)] = olap
     
     # intersection of two sets only - not overlapped with any other set - A int B int (not C)
     disjointOverlaps = {}
     if fineTune:
-        for comb in product(*[[True,False]]*len(radii)):
-            if comb != (False, )*len(radii):
-                temp = []
-                for i, b in enumerate(comb):
-                    if b:
-                        temp.append(df.iloc[:,i])
-                    else:
-                        temp.append(1-df.iloc[:,i])
-                olap = np.sum(reduce(lambda x, y: x & y, temp))
-                disjointOverlaps[''.join([str(int(b)) for b in comb])] = olap
+        areaId = df.astype(str).apply(lambda row: str(reduce(np.char.add, row)) , axis=1)
+        vc = areaId.value_counts()
+        disjointOverlaps = dict(zip(vc.keys().astype(str).tolist(), vc.to_list()))
+    
     
     return labels, radii, actualOverlaps, disjointOverlaps
+
 
 
 ''' Computes the circles from radius and overlap data
@@ -151,7 +143,7 @@ def getCircles(radii, actualOverlaps, disjointOverlaps, fineTune=False):
                 distances[i, j] = distanceFromIntersectArea(radii[i], radii[j], actualOverlaps[combstr])
     
     mds = MDS(n_components=2, max_iter=3000, eps=1e-9, random_state=42,
-                       dissimilarity="precomputed", n_jobs=1)
+                       dissimilarity='precomputed', n_jobs=1)
     pos = mds.fit(distances).embedding_
     circles = [[(pos[i,0], pos[i,1]), radii[i]] for i in range(len(radii))]
     
@@ -160,7 +152,7 @@ def getCircles(radii, actualOverlaps, disjointOverlaps, fineTune=False):
         for i in range(pos.shape[0]):
             centers += [pos[i, 0], pos[i, 1]]
         
-        res = minimize(lambda p: lossFunction(p, radii, disjointOverlaps), centers, method='Nelder-Mead', options={'maxiter': 500, 'disp': True})
+        res = minimize(lambda p: lossFunction(p, radii, disjointOverlaps), centers, method='Nelder-Mead', options={'maxiter': 100, 'disp': True})
         
         centers = list(res['x'])
         circles =  []
@@ -168,6 +160,7 @@ def getCircles(radii, actualOverlaps, disjointOverlaps, fineTune=False):
             circles.append([(centers[2*i+0], centers[2*i+1]), radii[i]])
     
     return circles
+
 
 
 ''' Get label positions for each circle avoiding the overlap areas '''
@@ -194,6 +187,8 @@ def getLabelPositions(circles, labels):
         lx, ly = x[rndx, rndy], y[rndx, rndy]
         yield l, lx, ly
 
+
+
 ''' Dictionary filter utility function - filter a dictionary basedon criteria'''
 def filterTheDict(dictObj, callback):
     newDict = dict()
@@ -205,13 +200,14 @@ def filterTheDict(dictObj, callback):
     return newDict
 
 
+
 ''' Plots the Venn diagrams from radius and overlap data '''
-def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, fineTune=False):
+def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, edgecolor='black', fineTune=False):
     circles = getCircles(radii, actualOverlaps, disjointOverlaps, fineTune)
     fig, ax = plt.subplots()
     cplots = [plt.Circle(circles[i][0], circles[i][1]) for i in range(len(circles))]
     arr = np.array(radii)
-    col = PatchCollection(cplots, cmap=cmap, array=arr, edgecolor='black', alpha=0.5)
+    col = PatchCollection(cplots, cmap=cmap, array=arr, edgecolor=edgecolor, alpha=0.5)
     ax.add_collection(col)
     
     if labels is not None:
@@ -228,7 +224,7 @@ def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, fineTu
 
 ''' Usage Example '''
 if __name__ == '__main__':
-    df = pd.DataFrame(np.random.choice([0,1], size = (1000, 5)), columns=list('ABCDE'))
+    df = pd.DataFrame(np.random.choice([0,1], size = (50000, 15)), columns=list(range(15)))
     labels, radii, actualOverlaps, disjointOverlaps = df2areas(df, fineTune=False)
     fig, ax = venn(radii, actualOverlaps, disjointOverlaps, labels=labels, cmap=None, fineTune=False)
     plt.savefig('venn.png', dpi=300, transparent=True)
