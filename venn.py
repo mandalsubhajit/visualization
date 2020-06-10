@@ -92,7 +92,7 @@ def lossFunction(centers, radii, overlaps):
         circles.append([(centers[2*i+0], centers[2*i+1]), radii[i]])
     
     x, y, intersectionIds, curr_overlap = calc_overlap_area(circles)
-    sst = len(overlaps)*np.var(list(overlaps.values()))
+    sst = max(len(overlaps)*np.var(list(overlaps.values())), 1)
     for k in overlaps:
         error = overlaps[k] - curr_overlap[k] if k in curr_overlap else overlaps[k]
         output += error * error / sst
