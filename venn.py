@@ -95,8 +95,8 @@ def lossFunction(centers, radii, overlaps):
     
     x, y, intersectionIds, curr_overlap = calc_overlap_area(circles)
     sst = max(len(overlaps)*np.var(list(overlaps.values())), 1)
-    act_df = pd.DataFrame(overlaps.items(), columns=['areaId', 'actual'])
-    curr_df = pd.DataFrame(curr_overlap.items(), columns=['areaId', 'current'])
+    act_df = pd.DataFrame(list(overlaps.items()), columns=['areaId', 'actual'])
+    curr_df = pd.DataFrame(list(curr_overlap.items()), columns=['areaId', 'current'])
     mdf = act_df.merge(curr_df, on='areaId', how='outer').fillna(0)
     mdf['error'] = mdf['actual'] - mdf['current']
     loss = np.sum(mdf['error']*mdf['error']/sst)
