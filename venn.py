@@ -211,7 +211,7 @@ def venn(radii, actualOverlaps, disjointOverlaps, labels=None, cmap=None, fineTu
     fig, ax = plt.subplots()
     cplots = [plt.Circle(circles[i][0], circles[i][1]) for i in range(len(circles))]
     arr = np.array(radii)
-    col = PatchCollection(cplots, cmap=cmap, array=arr, alpha=0.5)
+    col = PatchCollection(cplots, cmap=cmap, array=arr, edgecolor='black', alpha=0.5)
     ax.add_collection(col)
     
     if labels is not None:
