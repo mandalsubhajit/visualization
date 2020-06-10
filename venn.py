@@ -119,7 +119,7 @@ def df2areas(df, fineTune=False):
     # intersection of two sets only - not overlapped with any other set - A int B int (not C)
     disjointOverlaps = {}
     if fineTune:
-        areaId = df.astype(str).apply(lambda row: str(reduce(np.char.add, row)) , axis=1)
+        areaId = pd.Series(df.astype(str).values.sum(axis=1))
         vc = areaId.value_counts()
         disjointOverlaps = dict(zip(vc.keys().astype(str).tolist(), vc.to_list()))
     
