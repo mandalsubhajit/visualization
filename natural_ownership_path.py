@@ -11,8 +11,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def buildTree(df, prev_path, curr_col, curr_set, typ='left'):
+def buildTree(df, prev_path, curr_col, curr_set, depth, max_depth=5, typ='left'):
     global branches
+    
+    if depth >= max_depth:
+        return
+    
     newdf = df.drop(curr_col, axis=1)
     if newdf.shape[1] > 0:
         nxt = newdf[curr_set==1].sum().idxmax()
@@ -25,21 +29,20 @@ def buildTree(df, prev_path, curr_col, curr_set, typ='left'):
     
     left_child = curr_set & df[nxt]
     branches.append((prev_path, prev_path+', '+nxt, left_child.sum()))
-    buildTree(newdf, prev_path, nxt, left_child)
+    buildTree(newdf, prev_path, nxt, left_child, depth+1, max_depth)
     
     right_child = curr_set & (1-df[nxt])
     branches.append((prev_path, prev_path+', '+'no '+nxt, right_child.sum()))
-    buildTree(newdf, prev_path, nxt, right_child, typ='right')
+    buildTree(newdf, prev_path, nxt, right_child, depth+1, max_depth, typ='right')
 
 
 df = pd.DataFrame(np.random.choice([0,1], size = (10000, 5)), columns=list('ABCDE'))
 start_col = 'A'
 start_set = df[start_col]
 branches = []
-buildTree(df, '', start_col, start_set)
+buildTree(df, '', start_col, start_set, depth=1, max_depth=4)
 
 links = pd.DataFrame(branches, columns=['source', 'target', 'value'])
-links = links[links.value>0]
 labeldict = {}
 
 for i, row in links.iterrows():
