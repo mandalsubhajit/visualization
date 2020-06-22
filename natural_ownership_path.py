@@ -39,6 +39,7 @@ branches = []
 buildTree(df, '', start_col, start_set)
 
 links = pd.DataFrame(branches, columns=['source', 'target', 'value'])
+links = links[links.value>0]
 labeldict = {}
 
 for i, row in links.iterrows():
