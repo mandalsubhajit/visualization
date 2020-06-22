@@ -21,7 +21,7 @@ def buildTree(df, prev_path, curr_col, curr_set, typ='left'):
     
     if typ=='right':
         curr_col = 'no '+curr_col
-    prev_path = ', '.join([prev_path, curr_col])
+    prev_path = ', '.join([prev_path, curr_col]) if prev_path != '' else curr_col
     
     left_child = curr_set & df[nxt]
     branches.append((prev_path, prev_path+', '+nxt, left_child.sum()))
@@ -32,7 +32,7 @@ def buildTree(df, prev_path, curr_col, curr_set, typ='left'):
     buildTree(newdf, prev_path, nxt, right_child, typ='right')
 
 
-df = pd.DataFrame(np.random.choice([0,1], size = (1000, 5)), columns=list('ABCDE'))
+df = pd.DataFrame(np.random.choice([0,1], size = (10000, 5)), columns=list('ABCDE'))
 start_col = 'A'
 start_set = df[start_col]
 branches = []
@@ -40,11 +40,15 @@ buildTree(df, '', start_col, start_set)
 
 links = pd.DataFrame(branches, columns=['source', 'target', 'value'])
 labeldict = {}
+
+for i, row in links.iterrows():
+    labeldict[row['target']] = {'label': ', '.join([p for p in row['target'].split(', ') if 'no' not in p])}
+
 for i, row in links.iterrows():
     labeldict[row['source']] = {'label': row['source'].split(', ')[-1]}
-    labeldict[row['target']] = {'label': row['target'].split(', ')[-1]}
+    #labeldict[row['target']] = {'label': row['target'].split(', ')[-1]}
     
 from psankey.sankey import sankey
-fig, ax = sankey(links, nodemodifier=labeldict)
+fig, ax = sankey(links, nodecolorby='size', nodecmap='viridis', nodemodifier=labeldict)
 plt.savefig('test.png', dpi=1200)
 plt.close()
