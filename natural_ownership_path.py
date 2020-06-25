@@ -9,6 +9,7 @@ Created on Sun Jun 21 09:28:31 2020
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 
 def buildTree(df, prev_path, curr_col, curr_set, depth, max_depth=5, typ='left'):
@@ -28,11 +29,11 @@ def buildTree(df, prev_path, curr_col, curr_set, depth, max_depth=5, typ='left')
     prev_path = ', '.join([prev_path, curr_col]) if prev_path != '' else curr_col
     
     left_child = curr_set & df[nxt]
-    branches.append((prev_path, prev_path+', '+nxt, left_child.sum()))
+    branches.append((prev_path, prev_path+', '+nxt, left_child.sum(), '#2BAE66FF', 0.3))
     buildTree(newdf, prev_path, nxt, left_child, depth+1, max_depth)
     
     right_child = curr_set & (1-df[nxt])
-    branches.append((prev_path, prev_path+', '+'no '+nxt, right_child.sum()))
+    branches.append((prev_path, prev_path+', '+'no '+nxt, right_child.sum(), 'gray', 0.3))
     buildTree(newdf, prev_path, nxt, right_child, depth+1, max_depth, typ='right')
 
 
@@ -42,7 +43,7 @@ start_set = df[start_col]
 branches = []
 buildTree(df, '', start_col, start_set, depth=1, max_depth=4)
 
-links = pd.DataFrame(branches, columns=['source', 'target', 'value'])
+links = pd.DataFrame(branches, columns=['source', 'target', 'value', 'color', 'alpha'])
 labeldict = {}
 
 for i, row in links.iterrows():
@@ -51,8 +52,12 @@ for i, row in links.iterrows():
 for i, row in links.iterrows():
     labeldict[row['source']] = {'label': row['source'].split(', ')[-1]}
     #labeldict[row['target']] = {'label': row['target'].split(', ')[-1]}
-    
+
+blues = plt.cm.get_cmap('Blues', 256)
+newcolors=blues(np.linspace(0, 1, 256))
+newcmp = ListedColormap(newcolors[::-128, :])
+
 from psankey.sankey import sankey
-fig, ax = sankey(links, nodecolorby='size', nodecmap='viridis', nodemodifier=labeldict)
+fig, ax = sankey(links, linklabels=False, nodecolorby='size', nodecmap=newcmp, nodemodifier=labeldict)
 plt.savefig('test.png', dpi=1200)
 plt.close()
